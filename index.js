@@ -33,6 +33,31 @@ async function startBot() {
   });
 }
 
+app.get('/', (req, res) => {
+  res.send(`
+    <html>
+      <body style="background:#111;color:#fff;font-family:sans-serif;padding:20px;">
+        <h1>🤖 Violence Lord XD</h1>
+        <h3>Owner Pairing Panel</h3>
+        <p>Status: ${isConnected ? '🟢 WhatsApp Connected' : '🔴 WhatsApp Not Connected'}</p>
+        <input id="num" placeholder="2347079256905" style="padding:10px;width:300px;font-size:16px;" />
+        <br><br>
+        <button onclick="pair()" style="padding:10px 20px;background:green;color:white;border:none;font-size:16px;cursor:pointer;">Get Pairing Code</button>
+        <h2 id="result"></h2>
+        <script>
+          async function pair() {
+            const number = document.getElementById('num').value;
+            document.getElementById('result').innerText = '⏳ Generating...';
+            const res = await fetch('/api/pair', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({number})});
+            const data = await res.json();
+            document.getElementById('result').innerText = data.code ? '✅ Code: ' + data.code : '❌ Error: ' + data.error;
+          }
+        </script>
+      </body>
+    </html>
+  `);
+});
+
 app.get('/api/bot/status', (req, res) => {
   res.json({ status: isConnected ? 'online' : 'offline' });
 });
