@@ -1,4 +1,4 @@
-require('./telegramBot.js');
+const { bot } = require('./telegramBot.js');
 
 const express = require('express');
 const { makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
