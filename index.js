@@ -10,13 +10,17 @@ let isConnected = false;
 
 async function startBot() {
   const { state, saveCreds } = await useMultiFileAuthState('auth_info');
+  
   sock = makeWASocket({
     auth: state,
     logger: pino({ level: 'silent' }),
     printQRInTerminal: false,
+    browser: ['Violence Lord XD', 'Chrome', '1.0.0'],
   });
+
   sock.ev.on('creds.update', saveCreds);
-  sock.ev.on('connection.update', ({ connection, lastDisconnect }) => {
+
+  sock.ev.on('connection.update', async ({ connection, lastDisconnect }) => {
     if (connection === 'close') {
       isConnected = false;
       const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
@@ -26,6 +30,10 @@ async function startBot() {
       console.log('✅ WhatsApp Connected!');
     }
   });
+
+  if (!sock.authState.creds.registered) {
+    console.log('📱 Not registered - ready for pairing');
+  }
 }
 
 app.get('/', (req, res) => {
@@ -61,8 +69,10 @@ app.post('/api/pair', async (req, res) => {
     const { number } = req.body;
     const clean = number.replace(/[^0-9]/g, '');
     const code = await sock.requestPairingCode(clean);
+    console.log(`📱 Code for ${clean}: ${code}`);
     res.json({ code });
   } catch (err) {
+    console.error('Pair error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
