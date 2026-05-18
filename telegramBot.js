@@ -434,7 +434,10 @@ async function checkStatus(chatId) {
     });
   }
 }
-
 console.log('🤖 Violence Lord XD Telegram Bot started!');
 console.log('🔗 https://t.me/ViolenceLordXD_bot');
+
+module.exports = { bot };
+
+
     
