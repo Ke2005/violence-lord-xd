@@ -1,18 +1,14 @@
 // ============================================================
 // VIOLENCE LORD XD - Telegram WhatsApp Pairing Bot
-// Install: npm install node-telegram-bot-api axios
-// Run: node telegramBot.js
 // ============================================================
 
 const TelegramBot = require('node-telegram-bot-api');
 const axios = require('axios');
 
-// ── CONFIG ───────────────────────────────────────────────────
 const TOKEN = process.env.BOT_TOKEN;
 const BOT_SERVER_URL = 'https://violence-lord-xd-production.up.railway.app';
 const LOGO_URL = 'https://i.ibb.co/XxcnMFhh/file-000000007c0471f4bb03c1c6cfe5889b.png';
 
-// ── COMMUNITY LINKS ──────────────────────────────────────────
 const LINKS = {
   telegramChannel: 'https://t.me/violenceLordXDbots',
   telegramGroup: 'https://t.me/ViolenceLordXDbot',
@@ -20,20 +16,22 @@ const LINKS = {
   whatsappGroup: 'https://chat.whatsapp.com/INjbyG5Hl3b2xEDvFQCb2k',
 };
 
-const bot = new TelegramBot(TOKEN, { polling: true });
+const bot = new TelegramBot(TOKEN, {
+  polling: {
+    interval: 300,
+    autoStart: true,
+    params: { timeout: 10 }
+  }
+});
 
-// Track users waiting for phone number
+process.once('SIGINT', () => bot.stopPolling());
+process.once('SIGTERM', () => bot.stopPolling());
+
 const waitingForNumber = new Set();
-
-// Track users who have confirmed joining
 const confirmedJoined = new Set();
-
-// Track pending number (waiting for join confirmation)
 const pendingNumber = new Map();
-
 let totalPairings = 0;
 
-// ── WELCOME ───────────────────────────────────────────────────
 const welcomeText = (name) => `
 👋 Welcome *${name}*!
 
@@ -64,7 +62,6 @@ const mainKeyboard = {
   ],
 };
 
-// ── JOIN REQUIRED KEYBOARD ────────────────────────────────────
 const joinKeyboard = {
   inline_keyboard: [
     [{ text: '📣 Join Telegram Channel', url: LINKS.telegramChannel }],
@@ -75,7 +72,6 @@ const joinKeyboard = {
   ],
 };
 
-// ── /start ────────────────────────────────────────────────────
 bot.onText(/\/start/, async (msg) => {
   const chatId = msg.chat.id;
   const firstName = msg.from?.first_name || 'Friend';
@@ -92,7 +88,6 @@ bot.onText(/\/status/, async (msg) => checkStatus(msg.chat.id));
 bot.onText(/\/commands/, async (msg) => showCommands(msg.chat.id));
 bot.onText(/\/help/, async (msg) => showHelp(msg.chat.id));
 
-// ── CALLBACKS ─────────────────────────────────────────────────
 bot.on('callback_query', async (query) => {
   const chatId = query.message.chat.id;
   await bot.answerCallbackQuery(query.id);
@@ -106,17 +101,13 @@ bot.on('callback_query', async (query) => {
   if (data === 'help') return showHelp(chatId);
 
   if (data === 'confirm_joined') {
-    // Mark user as confirmed joined
     confirmedJoined.add(chatId);
-
-    // Check if they have a pending number
     if (pendingNumber.has(chatId)) {
       const number = pendingNumber.get(chatId);
       pendingNumber.delete(chatId);
       await bot.sendMessage(chatId, `✅ *Thank you for joining!*\n\nGenerating your pairing code now...`, { parse_mode: 'Markdown' });
       return generateCode(chatId, number);
     } else {
-      // No pending number — ask for it
       waitingForNumber.add(chatId);
       return bot.sendMessage(chatId, `
 ✅ *Thank you for joining our communities!*
@@ -149,21 +140,13 @@ Type your number now 👇
   }
 });
 
-// ── START PAIR FLOW ───────────────────────────────────────────
 async function startPairFlow(chatId) {
-  // Check if already confirmed joined
-  if (confirmedJoined.has(chatId)) {
-    return askForNumber(chatId);
-  }
-
-  // Force join communities first
+  if (confirmedJoined.has(chatId)) return askForNumber(chatId);
   await bot.sendPhoto(chatId, LOGO_URL, {
     caption: `
 🚨 *Join Required!*
 
 Before getting your pairing code, you must join all our communities below! 👇
-
-This is *required* to use the Violence Lord XD bot.
 
 1️⃣ Join our Telegram Channel
 2️⃣ Join our Telegram Group
@@ -177,7 +160,6 @@ After joining all 4, tap *"✅ I Have Joined All!"*
   });
 }
 
-// ── ASK FOR NUMBER ────────────────────────────────────────────
 async function askForNumber(chatId) {
   waitingForNumber.add(chatId);
   await bot.sendMessage(chatId, `
@@ -198,7 +180,6 @@ Type your number now 👇
   });
 }
 
-// ── HANDLE MESSAGES ───────────────────────────────────────────
 bot.on('message', async (msg) => {
   const chatId = msg.chat.id;
   const text = msg.text?.trim();
@@ -215,9 +196,7 @@ bot.on('message', async (msg) => {
       });
     }
 
-    // Check if confirmed joined
     if (!confirmedJoined.has(chatId)) {
-      // Save number and ask to join first
       pendingNumber.set(chatId, number);
       return bot.sendPhoto(chatId, LOGO_URL, {
         caption: `
@@ -238,7 +217,6 @@ Join all 4 below then tap *"✅ I Have Joined All!"*
   await bot.sendMessage(chatId, `Use /start to see the menu! 😊`);
 });
 
-// ── GENERATE CODE ─────────────────────────────────────────────
 async function generateCode(chatId, number) {
   const loadingMsg = await bot.sendMessage(chatId, `⏳ *Generating code for +${number}...*\nPlease wait up to 30 seconds...`, { parse_mode: 'Markdown' });
 
@@ -269,7 +247,6 @@ async function generateCode(chatId, number) {
 7️⃣ Done! 🎉
 
 ⚠️ Code expires in *60 seconds!*
-_Request a new one if it expires._
         `.trim(),
         parse_mode: 'Markdown',
         reply_markup: {
@@ -279,24 +256,6 @@ _Request a new one if it expires._
           ],
         },
       });
-
-      // Auto send community links reminder after 5 seconds
-      setTimeout(() => {
-        bot.sendMessage(chatId, `
-💡 *Stay Connected!*
-
-Don't forget to stay in our communities for updates, support and more features!
-        `.trim(), {
-          parse_mode: 'Markdown',
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: '📣 Telegram Channel', url: LINKS.telegramChannel }],
-              [{ text: '👥 Telegram Group', url: LINKS.telegramGroup }],
-            ],
-          },
-        });
-      }, 5000);
-
     } else {
       throw new Error('No code returned');
     }
@@ -304,11 +263,6 @@ Don't forget to stay in our communities for updates, support and more features!
     try { await bot.deleteMessage(chatId, loadingMsg.message_id); } catch {}
     await bot.sendMessage(chatId, `
 ❌ *Failed to generate code!*
-
-Possible reasons:
-• Bot server restarting (wait 1-2 mins)
-• Number already linked to another device
-• Server temporarily unavailable
 
 Please try again shortly.
     `.trim(), {
@@ -318,7 +272,6 @@ Please try again shortly.
   }
 }
 
-// ── COMMUNITY LINKS ───────────────────────────────────────────
 async function sendCommunityLinks(chatId) {
   await bot.sendPhoto(chatId, LOGO_URL, {
     caption: `🌍 *Join the Violence Lord XD Community!*\n\nStay updated and chat with other users 👇`,
@@ -335,7 +288,6 @@ async function sendCommunityLinks(chatId) {
   });
 }
 
-// ── HOW TO ────────────────────────────────────────────────────
 async function showHowTo(chatId) {
   await bot.sendMessage(chatId, `
 📋 *How To Pair Violence Lord XD*
@@ -350,9 +302,7 @@ async function showHowTo(chatId) {
 8️⃣ Tap *Link a Device*
 9️⃣ Tap *"Link with phone number instead"*
 🔟 *Paste* the pairing code
-1️⃣1️⃣ *Done!* 🎉 Bot runs on your WhatsApp!
-
-_Bot runs 24/7 automatically!_
+1️⃣1️⃣ *Done!* 🎉
   `.trim(), {
     parse_mode: 'Markdown',
     reply_markup: {
@@ -364,7 +314,6 @@ _Bot runs 24/7 automatically!_
   });
 }
 
-// ── COMMANDS ──────────────────────────────────────────────────
 async function showCommands(chatId) {
   await bot.sendMessage(chatId, `
 ╭◆ 𝐕𝐢𝐨𝐥𝐞𝐧𝐜𝐞 𝐋𝐨𝐫𝐝 𝐗𝐃 𝐂𝐨𝐦𝐦𝐚𝐧𝐝𝐬
@@ -376,7 +325,7 @@ async function showCommands(chatId) {
 🎮 *Games* — .coin .dice .rps .math .guess
 🔧 *Utility* — .calculate .genpass .encode .decode
 👮 *Group* — .kick .promote .demote .mute .unmute .tagall .grouplink
-👁️ *Special* — .vv (view once saver), Self commands
+👁️ *Special* — .vv (view once saver)
 
 ╰────────────────◆
 _Prefix: dot (.) before every command_
@@ -386,7 +335,6 @@ _Prefix: dot (.) before every command_
   });
 }
 
-// ── HELP ──────────────────────────────────────────────────────
 async function showHelp(chatId) {
   await bot.sendMessage(chatId, `
 ❓ *Help & Support*
@@ -397,12 +345,6 @@ async function showHelp(chatId) {
 /commands — See all commands
 /status — Check bot status
 
-*Having issues?*
-• Make sure you joined all 4 communities
-• Copy the code by tapping it
-• Code expires in 60s — request new one
-• If server is down, wait 1-2 mins
-
 👤 Owner: Kerrick
 🤖 Bot: @ViolenceLordXD_bot
   `.trim(), {
@@ -411,7 +353,6 @@ async function showHelp(chatId) {
   });
 }
 
-// ── STATUS ────────────────────────────────────────────────────
 async function checkStatus(chatId) {
   const loadingMsg = await bot.sendMessage(chatId, '⏳ Checking status...');
   try {
@@ -434,10 +375,8 @@ async function checkStatus(chatId) {
     });
   }
 }
+
 console.log('🤖 Violence Lord XD Telegram Bot started!');
 console.log('🔗 https://t.me/ViolenceLordXD_bot');
 
 module.exports = { bot };
-
-
-    
