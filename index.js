@@ -8,6 +8,7 @@ app.use(express.json());
 let sock;
 let isConnected = false;
 let isStarting = false;
+let pairingCodeRequested = false;
 
 async function startBot() {
   if (isStarting) return;
@@ -38,15 +39,28 @@ async function startBot() {
     } else if (connection === 'open') {
       isConnected = true;
       isStarting = false;
+      pairingCodeRequested = false;
       console.log('✅ WhatsApp Connected!');
     } else if (connection === 'connecting') {
       console.log('🔄 Connecting to WhatsApp...');
+      
+      if (!sock.authState.creds.registered && !pairingCodeRequested) {
+        pairingCodeRequested = true;
+        const ownerNumber = process.env.OWNER_NUMBER;
+        if (ownerNumber) {
+          setTimeout(async () => {
+            try {
+              const code = await sock.requestPairingCode(ownerNumber);
+              console.log(`🔑 PAIRING CODE: ${code}`);
+            } catch (err) {
+              console.log('Pairing code error:', err.message);
+              pairingCodeRequested = false;
+            }
+          }, 3000);
+        }
+      }
     }
   });
-
-  if (!sock.authState.creds.registered) {
-    console.log('📱 Ready for pairing code');
-  }
 }
 
 app.get('/', (req, res) => {
@@ -54,7 +68,7 @@ app.get('/', (req, res) => {
     <html>
       <body style="background:#111;color:#fff;font-family:sans-serif;padding:20px;">
         <h1>🤖 Violence Lord XD</h1>
-        <p id="status">Status: ${isConnected ? '🟢 Connected' : '🔴 Not Connected'}</p>
+        <p>Status: ${isConnected ? '🟢 Connected' : '🔴 Not Connected'}</p>
         <input id="num" placeholder="2347079256905" style="padding:10px;width:300px;font-size:16px;" />
         <br><br>
         <button onclick="pair()" style="padding:10px 20px;background:green;color:white;border:none;font-size:16px;cursor:pointer;">Get Code</button>
@@ -62,7 +76,7 @@ app.get('/', (req, res) => {
         <script>
           async function pair() {
             const number = document.getElementById('num').value;
-            document.getElementById('result').innerText = '⏳ Please wait 5 seconds...';
+            document.getElementById('result').innerText = '⏳ Please wait...';
             const res = await fetch('/api/pair', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({number})});
             const data = await res.json();
             document.getElementById('result').innerText = data.code ? '✅ Code: ' + data.code : '❌ ' + data.error;
@@ -81,9 +95,7 @@ app.post('/api/pair', async (req, res) => {
   try {
     const { number } = req.body;
     const clean = number.replace(/[^0-9]/g, '');
-    
     await new Promise(resolve => setTimeout(resolve, 3000));
-    
     const code = await sock.requestPairingCode(clean);
     console.log(`📱 Code for ${clean}: ${code}`);
     res.json({ code });
