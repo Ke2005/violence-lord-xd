@@ -7,8 +7,12 @@ app.use(express.json());
 
 let sock;
 let isConnected = false;
+let isStarting = false;
 
 async function startBot() {
+  if (isStarting) return;
+  isStarting = true;
+
   const { state, saveCreds } = await useMultiFileAuthState('auth_info');
   
   sock = makeWASocket({
@@ -23,16 +27,20 @@ async function startBot() {
   sock.ev.on('connection.update', async ({ connection, lastDisconnect }) => {
     if (connection === 'close') {
       isConnected = false;
-      const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
-      if (shouldReconnect) startBot();
+      isStarting = false;
+      const code = lastDisconnect?.error?.output?.statusCode;
+      if (code !== DisconnectReason.loggedOut) {
+        setTimeout(() => startBot(), 5000);
+      }
     } else if (connection === 'open') {
       isConnected = true;
+      isStarting = false;
       console.log('✅ WhatsApp Connected!');
     }
   });
 
   if (!sock.authState.creds.registered) {
-    console.log('📱 Not registered - ready for pairing');
+    console.log('📱 Ready for pairing code');
   }
 }
 
