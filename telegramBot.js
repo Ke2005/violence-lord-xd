@@ -8,7 +8,7 @@ const TelegramBot = require('node-telegram-bot-api');
 const axios = require('axios');
 
 // ── CONFIG ───────────────────────────────────────────────────
-const TOKEN = '8794112310:AAH11dthIfPloJwXqpOm9NGQ0VMY9mbQUTk';
+const TOKEN = process.env.BOT_TOKEN;
 const BOT_SERVER_URL = 'https://efb9bad7-5eeb-43ef-92cf-f3268bdbb36b-00-17zlsicu29xfn.kirk.replit.dev';
 const LOGO_URL = 'https://i.ibb.co/XxcnMFhh/file-000000007c0471f4bb03c1c6cfe5889b.png';
 
